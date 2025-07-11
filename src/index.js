@@ -1,21 +1,31 @@
 const express = require('express');
 const app = express();
-
-// Important: This enables parsing of JSON bodies
 app.use(express.json());
 
-app.post('/slack/events', (req, res) => {
-  // Log incoming request for debugging
-  console.log('Received Slack request:', req.body);
+// Add logging middleware to see incoming requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    body: req.body,
+    headers: req.headers
+  });
+  next();
+});
 
-  // Handle the URL verification challenge
-  if (req.body.type === 'url_verification') {
-    console.log('Handling challenge:', req.body.challenge);
-    return res.status(200).json({ challenge: req.body.challenge });
+app.post('/slack/events', (req, res) => {
+  console.log('Received Slack event:', req.body);
+
+  // Handle URL verification
+  if (req.body && req.body.type === 'url_verification') {
+    console.log('Challenge received:', req.body.challenge);
+    return res.status(200)
+      .set('Content-Type', 'text/plain')
+      .send(req.body.challenge);
   }
 
-  // For all other events, just return 200 OK for now
-  res.status(200).send();
+  // Handle other events
+  res.status(200).send('Ok');
 });
 
 const PORT = process.env.PORT || 3000;
