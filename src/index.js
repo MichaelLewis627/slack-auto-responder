@@ -4,12 +4,21 @@ const express = require('express');
 // Initialize Express receiver
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
+  // Add processBeforeResponse for challenge verification
+  processBeforeResponse: true
 });
 
 // Initialize your Slack app with the receiver
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   receiver
+});
+
+// Add specific handler for URL verification
+receiver.router.post('/slack/events', (req, res) => {
+  if (req.body.type === 'url_verification') {
+    return res.json({ challenge: req.body.challenge });
+  }
 });
 
 // Keywords that trigger the auto-response
@@ -19,7 +28,7 @@ const coupaURL = 'https://amazon.coupahost.com';
 // Your custom response message
 const autoResponse = `Hello and thanks for reaching out! If this is an emergency (SEV1/SEV2), please submit your request via form our Coupa escalation intake form by clicking the "Start Workflow" button and filling out the form: https://slack.com/shortcuts/Ft0927KG58K1/f0171c184f3c213d8cd262a53003a519
 
-Otherwise, please note that SLA for finance to review Purchase Order requests in Coupa is 48 business hours, beginning at the time of the prior approval in the approproval chain. Non-emergent PO requests will be reviewed on a FIFO basis.`;
+Otherwise, please note that SLA for finance to review Purchase Order requests in Coupa is 48 business hours, beginning at the time of the prior approval in the approval chain. Non-emergent PO requests will be reviewed on a FIFO basis.`;
 
 // Listen for messages containing trigger words
 app.message(async ({ message, say }) => {
