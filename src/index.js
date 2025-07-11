@@ -1,12 +1,8 @@
 const express = require('express');
 const app = express();
 
-// Important: Add raw body handling for Slack verification
-app.use(express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+// Parse JSON bodies
+app.use(express.json());
 
 // Log all requests
 app.use((req, res, next) => {
@@ -19,9 +15,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add a root endpoint for testing
+// Root route
 app.get('/', (req, res) => {
-  res.send('Server is running!');
+  res.send('Slack Auto Responder is running!');
 });
 
 // Handle Slack events
@@ -33,16 +29,12 @@ app.post('/slack/events', (req, res) => {
     console.log('Handling URL verification');
     console.log('Challenge received:', req.body.challenge);
     
-    // Return challenge with proper headers
     return res.status(200)
-      .header('Content-Type', 'application/json')
-      .json({
-        challenge: req.body.challenge
-      });
+      .json({ challenge: req.body.challenge });
   }
 
   // Acknowledge other events
-  res.status(200).send('ok');
+  res.status(200).send('Event received');
 });
 
 // Error handling
@@ -54,5 +46,6 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log('Ready to handle Slack events at /slack/events');
+  console.log(`Root URL: http://localhost:${PORT}/`);
+  console.log(`Slack events URL: http://localhost:${PORT}/slack/events`);
 });
