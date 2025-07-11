@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
-    "@slack/bolt": "^3.13.1",
+    "@slack/web-api": "^6.8.1",
     "express": "^4.18.2"
   },
   "scripts": {
