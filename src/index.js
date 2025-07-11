@@ -1,24 +1,47 @@
-const { App, ExpressReceiver } = require('@slack/bolt');
 const express = require('express');
+const { App } = require('@slack/bolt');
 
-// Initialize Express receiver
-const receiver = new ExpressReceiver({
-  signingSecret: process.env.SLACK_SIGNING_SECRET,
-  // Add processBeforeResponse for challenge verification
-  processBeforeResponse: true
-});
+const app = express();
+app.use(express.json());
 
-// Initialize your Slack app with the receiver
-const app = new App({
+const slackApp = new App({
   token: process.env.SLACK_BOT_TOKEN,
-  receiver
+  signingSecret: process.env.SLACK_SIGNING_SECRET,
 });
 
-// Add specific handler for URL verification
-receiver.router.post('/slack/events', (req, res) => {
+// Handle URL verification challenge - exactly as per Slack docs
+app.post('/slack/events', (req, res) => {
+  // First, verify it's a url_verification request
   if (req.body.type === 'url_verification') {
-    return res.json({ challenge: req.body.challenge });
+    // Respond with the challenge token
+    return res.status(200)
+      .set('Content-Type', 'application/json')
+      .json({
+        challenge: req.body.challenge
+      });
   }
+
+  // Handle other event types
+  if (req.body.type === 'event_callback') {
+    const event = req.body.event;
+    
+    // Handle message events
+    if (event.type === 'message') {
+      const messageText = event.text.toLowerCase();
+      const hasTriggerWord = triggerWords.some(word => messageText.includes(word));
+      const hasCoupaURL = messageText.includes(coupaURL);
+
+      if (hasTriggerWord || hasCoupaURL) {
+        slackApp.client.chat.postMessage({
+          channel: event.channel,
+          text: autoResponse
+        });
+      }
+    }
+  }
+
+  // Acknowledge receipt of the event
+  res.status(200).send();
 });
 
 // Keywords that trigger the auto-response
@@ -30,24 +53,13 @@ const autoResponse = `Hello and thanks for reaching out! If this is an emergency
 
 Otherwise, please note that SLA for finance to review Purchase Order requests in Coupa is 48 business hours, beginning at the time of the prior approval in the approval chain. Non-emergent PO requests will be reviewed on a FIFO basis.`;
 
-// Listen for messages containing trigger words
-app.message(async ({ message, say }) => {
-  const messageText = message.text.toLowerCase();
-  const hasTriggerWord = triggerWords.some(word => messageText.includes(word));
-  const hasCoupaURL = messageText.includes(coupaURL);
-
-  if (hasTriggerWord || hasCoupaURL) {
-    await say(autoResponse);
-  }
+// Basic health check endpoint
+app.get('/', (req, res) => {
+  res.send('Slack app is running!');
 });
 
-// Add a basic health check endpoint
-receiver.router.get('/', (req, res) => {
-  res.send('Your Slack app is running!');
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
-
-// Start the app
-(async () => {
-  await app.start(process.env.PORT || 3000);
-  console.log('⚡️ Bolt app is running!');
-})();
