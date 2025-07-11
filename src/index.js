@@ -1,22 +1,9 @@
-const express = require('express');
-const { WebClient } = require('@slack/web-api');
-const app = express();
+const { App } = require('@slack/bolt');
 
-// Initialize Slack Web Client
-const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
-
-// Parse JSON bodies
-app.use(express.json());
-
-// Log all requests
-app.use((req, res, next) => {
-  console.log('Incoming request:', {
-    method: req.method,
-    path: req.path,
-    body: req.body,
-    headers: req.headers
-  });
-  next();
+// Initialize your app with your bot token and signing secret
+const app = new App({
+  token: process.env.SLACK_BOT_TOKEN,
+  signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
 // Keywords that trigger the auto-response
@@ -28,62 +15,19 @@ const autoResponse = `Hello and thanks for reaching out! If this is an emergency
 
 Otherwise, please note that SLA for finance to review Purchase Order requests in Coupa is 48 business hours, beginning at the time of the prior approval in the approval chain. Non-emergent PO requests will be reviewed on a FIFO basis.`;
 
-// Root route
-app.get('/', (req, res) => {
-  res.send('Slack Auto Responder is running!');
-});
+// Listen for messages containing trigger words
+app.message(async ({ message, say }) => {
+  const messageText = message.text.toLowerCase();
+  const hasTriggerWord = triggerWords.some(word => messageText.includes(word));
+  const hasCoupaURL = messageText.includes(coupaURL);
 
-// Handle Slack events
-app.post('/slack/events', async (req, res) => {
-  console.log('Received Slack event:', JSON.stringify(req.body, null, 2));
-
-  // URL Verification
-  if (req.body && req.body.type === 'url_verification') {
-    console.log('Handling URL verification');
-    console.log('Challenge received:', req.body.challenge);
-    return res.status(200).json({ challenge: req.body.challenge });
+  if (hasTriggerWord || hasCoupaURL) {
+    await say(autoResponse);
   }
-
-  // Handle message events
-  if (req.body.type === 'event_callback' && req.body.event.type === 'message') {
-    const event = req.body.event;
-    
-    // Don't respond to bot messages (prevents loops)
-    if (event.bot_id || event.subtype) {
-      return res.sendStatus(200);
-    }
-
-    // Check for trigger words or Coupa URL
-    const messageText = event.text.toLowerCase();
-    const hasTriggerWord = triggerWords.some(word => messageText.includes(word));
-    const hasCoupaURL = messageText.includes(coupaURL);
-
-    if (hasTriggerWord || hasCoupaURL) {
-      try {
-        // Fixed the typo here - removed the extra 'sl'
-        await slack.chat.postMessage({
-          channel: event.channel,
-          text: autoResponse
-        });
-      } catch (error) {
-        console.error('Error sending message:', error);
-      }
-    }
-  }
-
-  // Acknowledge the event
-  res.status(200).send('Event received');
 });
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).send('Internal Server Error');
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Root URL: http://localhost:${PORT}/`);
-  console.log(`Slack events URL: http://localhost:${PORT}/slack/events`);
-});
+// Start your app
+(async () => {
+  await app.start(process.env.PORT || 3000);
+  console.log('⚡️ Bolt app is running!');
+})();
