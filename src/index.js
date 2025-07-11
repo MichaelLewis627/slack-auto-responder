@@ -3,7 +3,7 @@ const { WebClient } = require('@slack/web-api');
 const app = express();
 
 // Initialize Slack Web Client
-const slack = new WebClient(process.env.nv.SLACK_BOT_TOKEN);
+const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
 // Parse JSON bodies
 app.use(express.json());
@@ -60,7 +60,8 @@ app.post('/slack/events', async (req, res) => {
 
     if (hasTriggerWord || hasCoupaURL) {
       try {
-        await sl slack.chat.postMessage({
+        // Fixed the typo here - removed the extra 'sl'
+        await slack.chat.postMessage({
           channel: event.channel,
           text: autoResponse
         });
