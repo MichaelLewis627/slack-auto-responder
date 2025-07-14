@@ -42,3 +42,13 @@ receiver.router.get('/', (req, res) => {
   await app.start(process.env.PORT || 3000);
   console.log('⚡️ Bolt app is running!');
 })();
+
+
+
+// Listen for direct messages (DMs) to the bot or user
+app.message(async ({ message, say }) => {
+  // Check if the message is a direct message
+  if (message.channel_type === 'im') {
+    await say(autoResponse);
+  }
+});
