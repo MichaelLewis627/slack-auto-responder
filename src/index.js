@@ -1,10 +1,14 @@
 const { App } = require('@slack/bolt');
+const axios = require('axios');
 
 // Initialize your app with your bot token and signing secret
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
+
+// Add the webhook URL
+const WEBHOOK_URL = 'https://hooks.slack.com/triggers/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';
 
 // Keywords that trigger the auto-response
 const triggerWords = ['approve', 'approval', 'request', 'reaching out'];
@@ -17,12 +21,26 @@ Otherwise, please note that SLA for finance to review Purchase Order requests in
 
 // Listen for messages containing trigger words
 app.message(async ({ message, say }) => {
-  const messageText = message.text.toLowerCase();
+  const messageText = message.text?.toLowerCase() || '';
   const hasTriggerWord = triggerWords.some(word => messageText.includes(word));
   const hasCoupaURL = messageText.includes(coupaURL);
 
   if (hasTriggerWord || hasCoupaURL) {
+    // Send auto-response
     await say(autoResponse);
+
+    // Trigger workflow via webhook
+    try {
+      await axios.post(WEBHOOK_URL, {
+        Ft096CPJDYRW__enterprise_id: message.team,
+        Ft096CPJDYRW__event_timestamp: Math.floor(Date.now() / 1000),
+        Ft096CPJDYRW__team_id: message.team,
+        message: messageText // Including the message for logging
+      });
+      console.log('Webhook triggered successfully');
+    } catch (error) {
+      console.error('Error triggering webhook:', error);
+    }
   }
 });
 
