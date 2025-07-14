@@ -23,6 +23,11 @@ Otherwise, please note that SLA for finance to review Purchase Order requests in
 
 // Listen for all messages
 app.message(async ({ message, say }) => {
+  // Ensure message.text exists before processing
+  if (!message.text) {
+    return; // Ignore messages without text content
+  }
+
   // Check if the message is a direct message to the bot or user
   if (message.channel_type === "im") {
     // If it's a direct message, respond immediately
